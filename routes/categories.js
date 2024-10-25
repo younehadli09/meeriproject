@@ -4,6 +4,8 @@ const Joi = require('joi');
 const cors = require('cors'); 
 const asyncHandler = require('express-async-handler');
 const {Category} = require('../models/Category')
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); 
 
 /**
  * @desc get  all categories
@@ -36,44 +38,52 @@ router.get('/Get/:id',async (req,res)=>{
 
 /**
  * @desc create category
- * @method post
+ * @method POST
  * @route /api/categories
  * @access public
  */
-router.post('/CreateCategory' ,async (req,res)=>{
-    let category = new  Category ({
-        name:req.body.name,
-        icon:req.body.icon,
-        color:req.body.color
-    })
-            category = await category.save();
-            
-            if(!category)
-                return res.status(404).send(' the category cannot be created')
+router.post('/CreateCategory', upload.single('icon'), async (req, res) => {
+    // Create the icon URL by concatenating the server URL with the file path
+    const iconUrl = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : null;
 
-            res.send(category)
-    })
+    let category = new Category({
+        name: req.body.name,
+        icon: iconUrl,  // Store the full path to the icon
+        description: req.body.description,
+        typestore: req.body.typestore,
+    });
+
+    try {
+        category = await category.save();
+        if (!category) return res.status(404).send('The category cannot be created');
+        res.send(category);
+    } catch (error) {
+        res.status(500).send('An error occurred: ' + error.message);
+    }
+});
+
 /**
  * @desc update category
  * @method PUT
- * @route /api/categories
+ * @route /api/categories/:id
  * @access public
  */
-router.put('/Update/:id',async (req,res)=>{
-    let category = await Category.findByIdAndUpdate(req.params.id,{
-        name:req.body.name,
-        icon:req.body.icon,
-        color:req.body.color
-    },{new : true})
+router.put('/Update/:id', upload.single('icon'), async (req, res) => {
+    // If a new icon is uploaded, generate the new icon URL
+    const iconUrl = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : req.body.icon;
 
-    category = await category.save();
-            
-    if(!category)
-        return res.status(404).send(' the category cannot be created')
+    let category = await Category.findByIdAndUpdate(req.params.id, {
+        name: req.body.name,
+        icon: iconUrl,  // Update the icon with the new URL or keep the existing one
+        typestore: req.body.typestore
+    }, { new: true });
 
-    res.send(category)
+    if (!category)
+        return res.status(404).send('The category cannot be updated');
 
-})
+    res.send(category);
+});
+
 /**
  * @desc DELETE category
  * @method DELETE

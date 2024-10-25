@@ -11,9 +11,18 @@ function auth_jwt() {
         path: [
             // Public routes that don't require authentication
             { url: /\/StoreAPI\/users/, methods: ['POST'] },
+            
             { url: /\/StoreAPI\/products/, methods: ['GET'] },
+            { url: /\/StoreAPI\/products/, methods: ['DELETE'] },
+
+
             { url: /\/StoreAPI\/categories/, methods: ['GET'] },
+
+            { url: /\/StoreAPI\/categories/, methods: ['POST'] },
+            { url: /\/StoreAPI\/categories/, methods: ['DELETE'] },
             { url: /\/StoreAPI\/orders/, methods: ['POST'] },
+            { url: /\/StoreAPI\/orders/, methods: ['GET'] },
+
 
 
         ]

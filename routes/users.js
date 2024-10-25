@@ -56,6 +56,7 @@ router.post("/register", asyncHandler(async(req, res) => {
     });
   
     const result = await newUser.save();
+    
     res.status(201).json(result);
   }));
 
@@ -80,6 +81,7 @@ router.post("/register", asyncHandler(async(req, res) => {
     );
 
     res.status(200).json({ user: user.email, token: token });
+    console.log(token);
 }));
 
 router.get('/countusers', async (req, res) => {

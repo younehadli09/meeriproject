@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const { Product, validationproduct } = require('../models/Products');
+const { Product, validationproduct  , validationupdate} = require('../models/Product');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); // Set up the folder for file storage
+
 
 /**
  * @desc get  all products
@@ -71,64 +74,94 @@ router.get('/isfeatured', async (req, res) => {
  * @route /api/products
  * @access public
  */
-router.post('/CreateProduct', async (req, res) => {
+router.post('/CreateProduct', upload.array('images', 10), async (req, res) => {
+    // Validate request body against Joi validation schema
     const { error, value } = validationproduct.validate(req.body);
+    
+    // If validation fails, send a 400 response with error message
     if (error) {
         return res.status(400).send(error.details[0].message);
     }
+
+    // Create array of file names or URLs for the uploaded images
+    const imageUrls = req.files.map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
+
+    // Create new Product instance with validated values and uploaded images
     let product = new Product({
         name: value.name,
         description: value.description,
         richDescription: value.richDescription,
-        image: value.image,
+        images: imageUrls, // Store array of image URLs
         brand: value.brand,
         Price: value.Price,
         category: value.category,
         CountINStock: value.CountINStock,
         rating: value.rating,
         IsFeatured: value.IsFeatured,
+        productdetail: value.productdetail
     });
 
     try {
+        // Save the product to the database
         product = await product.save();
-        res.send(product);
+        // Send the created product back as a response with 201 status code
+        res.status(201).send(product);
     } catch (err) {
-        res.status(500).send(err.message);
+        // In case of error during saving, send a 500 error response
+        res.status(500).send('Server Error: ' + err.message);
     }
 });
 
-/**
- * @desc update product
- * @method put
+
+/** 
+ * @desc Update product
+ * @method PUT
  * @route /api/products/:id
  * @access public
  */
-router.put('/Update/:id', async (req, res) => {
+router.put('/Update/:id', upload.array('images', 10), async (req, res) => {
+    // Check if product ID is valid
     if (!mongoose.isValidObjectId(req.params.id)) {
         return res.status(404).json({ success: false, message: 'Invalid product ID' });
     }
-    const updatedProduct = await Product.findByIdAndUpdate(
-        req.params.id,
-        {
-            name: req.body.name,
-            description: req.body.description,
-            richDescription: req.body.richDescription,
-            image: req.body.image,
-            brand: req.body.brand,
-            Price: req.body.Price,
-            category: req.body.category,
-            CountINStock: req.body.CountINStock,
-            rating: req.body.rating,
-            IsFeatured: req.body.IsFeatured,
-        },
-        { new: true }
-    );
-
-    if (!updatedProduct) {
-        return res.status(404).send('The product cannot be updated');
+    const { error, value } = validationupdate.validate(req.body);
+    if (error) {
+        return res.status(400).send(error.details[0].message);
     }
-    res.send(updatedProduct);
+
+    // Handle image uploads if there are new files
+    let imageUrls;
+    if (req.files && req.files.length > 0) {
+        imageUrls = req.files.map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
+    }
+
+    // Find product by ID
+    let product = await Product.findById(req.params.id);
+    if (!product) {
+        return res.status(404).send('Product not found');
+    }
+
+    
+    product.name = value.name;
+    product.description = value.description;
+    product.richDescription = value.richDescription;
+    product.images = imageUrls || product.images; 
+    product.brand = value.brand;
+    product.Price = value.Price;
+    product.category = value.category;
+    product.CountINStock = value.CountINStock;
+    product.rating = value.rating;
+    product.IsFeatured = value.IsFeatured;
+
+    try {
+        // Save the updated product
+        product = await product.save();
+        res.send(product);
+    } catch (err) {
+        res.status(500).send('Server Error: ' + err.message);
+    }
 });
+
 
 /**
  * @desc delete product

@@ -6,31 +6,25 @@ const { INTEGER } = require('sequelize');
 const { STRING } = require('sequelize');
 
 const Categoryschema = new mongoose.Schema({
-name :{
-    type :String,
-    required : true 
-    
+    name: {
+        type: String,
+        required: true
+    },
+    icon: {
+        type: String,  
+    },
+    description :{
+        type: String,
+        required: true
+    },
+    typestore:{
+        type: String,
+        enum: ['accessoire', 'vetement'], 
+        required: true
+    },
+}, {
+    timestamps: true
+});
 
-},
-icon :{
-    type :String,
-    
-    
-},
-color :{
-    type :String,
-    
-
-}
-
-},
-{
-    timestamps :true
-}
-);
-
-
-const Category = mongoose.model("Category",Categoryschema);
-module.exports = {
-       Category
-}
+const Category = mongoose.model("Category", Categoryschema);
+module.exports = { Category };

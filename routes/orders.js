@@ -3,7 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { Order } = require('../models/Order');
 const { OrderItem } = require('../models/Order_item'); 
-const { Product } = require('../models/Products');
+const { Product } = require('../models/Product');
 
 
 /**
@@ -22,39 +22,70 @@ router.get('/GetALLOrders', async (req, res) => {
 
 
 /**
- * @desc crate order
+ * @desc create order
  * @method post
  * @route /api/orders
  * @access public
  */
-router.post('/Createorder' ,async (req,res)=>{
-    const  orderitemsids =  Promise.all(req.body.orderitems.map(async item => 
-    {
-        let  newOrderitem = OrderItem({
-            quantity :item.quantity,
-            product :item.product
-        })
-        newOrderitem = await newOrderitem.save();
-        return newOrderitem._id;
+router.post('/Createorder', async (req, res) => {
+    try {
+        // Create order items and return their ids
+        const orderitemsids = await Promise.all(req.body.orderitems.map(async item => {
+            // Convert quantity to Number
+            const quantity = Number(item.quantity); // Convert to number
+
+            let newOrderitem = new OrderItem({
+                quantity: quantity,
+                product: item.product,
+            });
+            newOrderitem = await newOrderitem.save();
+            return newOrderitem._id;
+        }));
+
+        // Fetch order items to calculate total quantity and price
+        const orderitems = await OrderItem.find({ _id: { $in: orderitemsids } });
+        if (!orderitems.length) {
+            return res.status(400).send('No valid order items created.');
+        }
+
+        // Fetch product details to calculate total price
+        const productIds = orderitems.map(item => item.product);
+        const products = await Product.find({ _id: { $in: productIds } });
+
+        // Calculate total quantity and total price
+        const totalQuantity = orderitems.reduce((total, item) => total + item.quantity, 0);
+        const totalPrice = orderitems.reduce((total, item) => {
+            const product = products.find(p => p._id.equals(item.product));
+            if (product && product.Price) {
+                return total + (product.Price * item.quantity); // Make sure product.Price is a number
+            }
+            return total; // If product not found, skip
+        }, 0);
+
+        // Create the order with total quantity and price
+        let order = new Order({
+            orderitems: orderitemsids,
+            adress: req.body.adress,
+            city: req.body.city,
+            postalcode: req.body.postalcode,
+            phonenumber: req.body.phonenumber,
+            status: req.body.status,
+            totalprice: totalPrice,
+            quantityOrder: totalQuantity,
+            user: req.body.user,
+        });
+
+        order = await order.save();
+
+        if (!order) {
+            return res.status(404).send('The order cannot be created');
+        }
+
+        res.send(order);
+    } catch (error) {
+        console.error('Error creating order:', error);
+        res.status(500).send('An error occurred while creating the order.');
     }
-    ));
-    const resolveditemsids = await orderitemsids
+});
 
-    let order = new  Order ({
-        orderitems:resolveditemsids,
-        adress:req.body.adress,
-        city:req.body.city,
-        postalcode:req.body.postalcode,
-        phonenumber:req.body.phonenumber,
-        status:req.body.status,
-        totlaprice:req.body.totlaprice,
-        user:req.body.user
-    })
-            order = await order.save();
-            
-            if(!order)
-                return res.status(404).send(' the order cannot be created')
-
-            res.send(order)
-    })
     module.exports = router;

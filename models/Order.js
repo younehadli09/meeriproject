@@ -37,10 +37,14 @@ status:{
     enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], 
     required: true
 },
-totlaprice: {
+totalprice: {
     type : Number,
     
 },
+quantityOrder: {  
+    type: Number,
+    default: 0,
+  },
 user :{
     type : mongoose.Types.ObjectId,
     ref : 'User',
